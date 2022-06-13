@@ -55,14 +55,8 @@ model Request {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  type RequestType
+  urlParams String @map("url_params")
+  houseIds  String @map("house_ids")
 
   @@map(name: "requests")
-}
-
-enum RequestType {
-  DAY
-  WEEK
-  MONTH
-  YEAR
 }

@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron, CronExpression } from '@nestjs/schedule'
-import { Prisma } from '@prisma/client'
+import { House, Prisma } from '@prisma/client'
 import { load } from 'cheerio'
 import dayjs from 'dayjs'
-import { head, isNil, omitBy } from 'lodash'
+import { head, isNil } from 'lodash'
+import { omitBy } from 'lodash/fp'
 import { setTimeout } from 'timers/promises'
 import { fetch } from 'undici'
 import { PrismaService } from '../prisma/prisma.service'
@@ -23,15 +24,18 @@ export class RequestService {
     private readonly config: ConfigService,
   ) {}
 
-  @Cron(CronExpression.EVERY_30_MINUTES)
-  async job() {
+  @Cron(CronExpression.EVERY_HOUR)
+  async dayJob(page = 1) {
     this.logger.debug(
-      'pull request start ' + dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      `[cron_request] ${page} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
     )
-    await this.pull()
+    const houses = await this.pull(page)
     this.logger.debug(
-      'pull request end ' + dayjs().format('YYYY-MM-DD HH:mm:ss'),
+      `[cron_request] ${page} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
     )
+    if (houses.every((h) => dayjs().diff(h.startAt, 'week', true) <= 1)) {
+      this.dayJob(page + 1)
+    }
   }
 
   parse(data: string) {
@@ -53,7 +57,7 @@ export class RequestService {
   filterData(data: string[]): Prisma.HouseCreateInput {
     const [
       uuid,
-      _,
+      ,
       region,
       name,
       certificateNumber,
@@ -88,17 +92,15 @@ export class RequestService {
         : null,
       status,
     }
-    return omitBy(house, isNil) as Prisma.HouseCreateInput
+    return omitBy(isNil)(house) as Prisma.HouseCreateInput
   }
 
-  async pull(page = '1') {
-    const url = buildURL(
-      this.config.get('ORIGIN_URL'),
-      new URLSearchParams({
-        pageNo: page,
-      }),
-    )
-    this.logger.debug('request ' + url)
+  async pull(page: string | number = 1) {
+    const urlParams = new URLSearchParams({
+      pageNo: String(page),
+    })
+    const url = buildURL(this.config.get('ORIGIN_URL'), urlParams)
+    this.logger.debug('[request url] ' + url)
     const result = await fetch(url, {
       method: 'post',
     }).then((res) => res.text())
@@ -117,10 +119,19 @@ export class RequestService {
       throw new InternalServerErrorException()
     }
 
-    const houses = list.map(this.filterData)
-    for (const h of houses) {
-      await this.saveOrUpdate(h)
+    const _list = list.map(this.filterData)
+    const houses: House[] = []
+    for (const h of _list) {
+      const house = await this.saveOrUpdate(h)
+      houses.push(house)
     }
+
+    await this.prisma.request.create({
+      data: {
+        urlParams: urlParams.toString(),
+        houseIds: houses.map((h) => h.id).join(','),
+      },
+    })
     return houses
   }
 
@@ -132,5 +143,9 @@ export class RequestService {
       update: house,
       create: house,
     })
+  }
+
+  async getCount() {
+    return this.prisma.request.count()
   }
 }
