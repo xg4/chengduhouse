@@ -1,12 +1,23 @@
 import { Injectable } from '@nestjs/common'
+import dayjs from 'dayjs'
 import { PrismaService } from '../prisma/prisma.service'
 
 @Injectable()
 export class HouseService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getAll(hash?: string) {
-    const houses = await this.prisma.house.findMany()
-    return houses
+  async getRecentYear() {
+    const lastYear = dayjs().subtract(1, 'year').toDate()
+    return this.prisma.house.findMany({
+      where: {
+        startAt: {
+          gte: lastYear,
+        },
+      },
+    })
+  }
+
+  async getAll() {
+    return this.prisma.house.findMany()
   }
 }
