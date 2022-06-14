@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable } from '@nestjs/common'
+import { BadRequestException, Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { User } from '@prisma/client'
@@ -23,13 +23,13 @@ export class AuthService {
     })
 
     if (!user) {
-      throw new ForbiddenException('用户名密码错误')
+      throw new BadRequestException('用户名密码错误')
     }
 
     const isMatch = await comparePassword(password, user.password)
 
     if (!isMatch) {
-      throw new ForbiddenException('用户名密码错误')
+      throw new BadRequestException('用户名密码错误')
     }
 
     return this.signToken(user)
@@ -50,14 +50,17 @@ export class AuthService {
   async signUp(dto: AuthDto) {
     const { username, password } = dto
 
-    const savedUser = await this.prisma.user.findUnique({
+    const savedUser = await this.prisma.user.findFirst({
       where: {
-        username,
+        username: {
+          equals: username,
+          mode: 'insensitive',
+        },
       },
     })
 
     if (savedUser) {
-      throw new ForbiddenException('用户名已存在')
+      throw new BadRequestException('用户名已存在')
     }
 
     const hash = await hashPassword(password)
