@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common'
+import { BadRequestException, Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron, CronExpression } from '@nestjs/schedule'
 import { House, Prisma } from '@prisma/client'
@@ -18,6 +14,8 @@ import { buildURL } from '../util'
 @Injectable()
 export class RequestService {
   private readonly logger = new Logger(RequestService.name)
+  private queue = new Set<number>()
+  private isExecuting = false
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,6 +29,26 @@ export class RequestService {
     if (houses.every((h) => dayjs().diff(h.startAt, 'week', true) <= 1)) {
       this.dayJob(page + 1)
     }
+  }
+
+  async execute() {
+    if (this.isExecuting) {
+      return
+    }
+    this.isExecuting = true
+    this.logger.debug('[queue execute] start')
+    for (const page of this.queue) {
+      this.logger.debug(`[queue execute] task ${page}`)
+      await this.pull(page)
+      this.queue.delete(page)
+    }
+    this.logger.debug('[queue execute] end')
+    this.isExecuting = false
+  }
+
+  enqueue(page: number) {
+    this.queue.add(page)
+    this.execute()
   }
 
   parse(data: string) {
@@ -89,18 +107,19 @@ export class RequestService {
     return omitBy(isNil)(house) as Prisma.HouseCreateInput
   }
 
-  async pull(page: string | number = 1) {
+  async pull(page = 1) {
     const urlParams = new URLSearchParams({
       pageNo: String(page),
     })
     const url = buildURL(this.config.get('ORIGIN_URL'), urlParams)
-    this.logger.debug('[request url] ' + url)
+    this.logger.debug(`[request url] ${urlParams.toString()}`)
     const result = await fetch(url, {
       method: 'post',
     }).then((res) => res.text())
     await setTimeout(1e3)
 
     const list = this.parse(result)
+    this.logger.debug(`[request url] data length: ${list.length}`)
     if (!list.length) {
       return
     }
@@ -110,7 +129,7 @@ export class RequestService {
     // 数据异常
     if (first && first[14] !== '查看') {
       this.logger.error('原数据异常')
-      throw new InternalServerErrorException()
+      throw new BadRequestException()
     }
 
     const _list = list.reverse().map(this.filterData)

@@ -1,4 +1,10 @@
-import { Controller, Get, Query } from '@nestjs/common'
+import {
+  Controller,
+  DefaultValuePipe,
+  Get,
+  ParseIntPipe,
+  Query,
+} from '@nestjs/common'
 import { Public } from '../auth/decorator'
 import { RequestService } from './request.service'
 
@@ -8,8 +14,8 @@ export class RequestController {
 
   @Get()
   @Public()
-  pull(@Query('page') page?: string) {
-    return this.requestService.pull(page)
+  pull(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number) {
+    return this.requestService.enqueue(page)
   }
 
   @Get('/count')
