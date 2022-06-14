@@ -26,13 +26,8 @@ export class RequestService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async dayJob(page = 1) {
-    this.logger.debug(
-      `[cron_request] ${page} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
-    )
+    this.logger.debug(`[cron_request] ${page}`)
     const houses = await this.pull(page)
-    this.logger.debug(
-      `[cron_request] ${page} ${dayjs().format('YYYY-MM-DD HH:mm:ss')}`,
-    )
     if (houses.every((h) => dayjs().diff(h.startAt, 'week', true) <= 1)) {
       this.dayJob(page + 1)
     }
@@ -54,23 +49,22 @@ export class RequestService {
     return trList
   }
 
-  filterData(data: string[]): Prisma.HouseCreateInput {
-    const [
-      uuid,
-      ,
-      region,
-      name,
-      certificateNumber,
-      range,
-      quantity,
-      phoneNumber,
-      startAt,
-      endsAt,
-      freezeDate,
-      freeze2Date,
-      qualificationDate,
-      status,
-    ] = data
+  filterData([
+    uuid,
+    ,
+    region,
+    name,
+    certificateNumber,
+    range,
+    quantity,
+    phoneNumber,
+    startAt,
+    endsAt,
+    freezeDate,
+    freeze2Date,
+    qualificationDate,
+    status,
+  ]: string[]): Prisma.HouseCreateInput {
     const house = {
       uuid,
       region,
@@ -119,7 +113,7 @@ export class RequestService {
       throw new InternalServerErrorException()
     }
 
-    const _list = list.map(this.filterData)
+    const _list = list.reverse().map(this.filterData)
     const houses: House[] = []
     for (const h of _list) {
       const house = await this.saveOrUpdate(h)
@@ -132,6 +126,7 @@ export class RequestService {
         houseIds: houses.map((h) => h.id).join(','),
       },
     })
+
     return houses
   }
 
