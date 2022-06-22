@@ -10,12 +10,12 @@ import { setTimeout } from 'timers/promises'
 import { fetch } from 'undici'
 import { PrismaService } from '../prisma/prisma.service'
 import { buildURL } from '../util'
+import { Executor } from '../util/executor'
 
 @Injectable()
 export class RequestService {
   private readonly logger = new Logger(RequestService.name)
-  private queue = new Set<number>()
-  private isExecuting = false
+  private readonly executor = new Executor<number>(this.pull.bind(this))
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,24 +31,8 @@ export class RequestService {
     }
   }
 
-  async execute() {
-    if (this.isExecuting) {
-      return
-    }
-    this.isExecuting = true
-    this.logger.debug('[queue execute] start')
-    for (const page of this.queue) {
-      this.logger.debug(`[queue execute] task ${page}`)
-      await this.pull(page)
-      this.queue.delete(page)
-    }
-    this.logger.debug('[queue execute] end')
-    this.isExecuting = false
-  }
-
-  enqueue(page: number) {
-    this.queue.add(page)
-    this.execute()
+  addTask(page: number) {
+    this.executor.enqueue(page)
   }
 
   parse(data: string) {

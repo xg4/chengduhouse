@@ -15,7 +15,7 @@ export class RequestController {
   @Get()
   @Public()
   pull(@Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number) {
-    return this.requestService.enqueue(page)
+    return this.requestService.addTask(page)
   }
 
   @Get('/count')
