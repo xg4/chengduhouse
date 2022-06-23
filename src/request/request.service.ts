@@ -4,18 +4,20 @@ import { Cron, CronExpression } from '@nestjs/schedule'
 import { House, Prisma } from '@prisma/client'
 import { load } from 'cheerio'
 import dayjs from 'dayjs'
-import { head, isNil } from 'lodash'
+import { Next } from 'koa'
+import compose from 'koa-compose'
+import { head, isNil, uniq } from 'lodash'
 import { omitBy } from 'lodash/fp'
 import { setTimeout } from 'timers/promises'
 import { fetch } from 'undici'
 import { PrismaService } from '../prisma/prisma.service'
 import { buildURL } from '../util'
-import { Executor } from '../util/executor'
 
 @Injectable()
 export class RequestService {
   private readonly logger = new Logger(RequestService.name)
-  private readonly executor = new Executor<number>(this.pull.bind(this))
+  private tasks: number[] = []
+  private running = false
 
   constructor(
     private readonly prisma: PrismaService,
@@ -31,8 +33,40 @@ export class RequestService {
     }
   }
 
+  async run() {
+    if (this.running) {
+      return
+    }
+    if (!this.tasks.length) {
+      return
+    }
+    this.running = true
+    const tasks = uniq(this.tasks)
+    this.tasks = []
+    const fns = tasks.map(
+      (page) => (ctx: RequestService, next: Next) => this.pull(page).then(next),
+    )
+
+    const loggerMiddleware = async (ctx: RequestService, next: Next) => {
+      const now = Date.now()
+      await next()
+      this.logger.log(`[Task] ${tasks.join(',')} +${(Date.now() - now) / 1e3}s`)
+    }
+    fns.unshift(loggerMiddleware)
+    const fnMiddleware = compose(fns)
+
+    const clear = () => {
+      this.running = false
+      return this.run()
+    }
+    return fnMiddleware(this).then(clear)
+  }
+
   addTask(page: number) {
-    this.executor.enqueue(page)
+    this.tasks.push(page)
+    if (this.tasks.length > 10) {
+      this.run()
+    }
   }
 
   parse(data: string) {
