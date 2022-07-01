@@ -20,4 +20,18 @@ export class HouseService {
   async getAll() {
     return this.prisma.house.findMany()
   }
+
+  async getByYear(year: number) {
+    const currentYear = dayjs().year(year)
+    const start = currentYear.startOf('year').toDate()
+    const end = currentYear.endOf('year').toDate()
+    return this.prisma.house.findMany({
+      where: {
+        startAt: {
+          gte: start,
+          lte: end,
+        },
+      },
+    })
+  }
 }

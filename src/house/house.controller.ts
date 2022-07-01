@@ -1,4 +1,4 @@
-import { Controller, Get } from '@nestjs/common'
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common'
 import { Public } from '../auth/decorator'
 import { HouseService } from './house.service'
 
@@ -15,5 +15,11 @@ export class HouseController {
   @Get('houses/all')
   getAll() {
     return this.houseService.getAll()
+  }
+
+  @Get('houses/:year')
+  @Public()
+  getByYear(@Param('year', ParseIntPipe) year: number) {
+    return this.houseService.getByYear(year)
   }
 }
