@@ -8,7 +8,7 @@ import {
 import { Public } from '../auth/decorator'
 import { RequestService } from './request.service'
 
-@Controller('request')
+@Controller('requests')
 export class RequestController {
   constructor(private readonly requestService: RequestService) {}
 

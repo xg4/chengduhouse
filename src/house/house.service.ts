@@ -6,8 +6,8 @@ import { PrismaService } from '../prisma/prisma.service'
 export class HouseService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async getRecentYear() {
-    const lastYear = dayjs().subtract(1, 'year').toDate()
+  async getLatest() {
+    const lastYear = dayjs().subtract(6, 'month').toDate()
     return this.prisma.house.findMany({
       where: {
         startAt: {

@@ -7,12 +7,13 @@ export class HouseController {
   constructor(private readonly houseService: HouseService) {}
 
   @Public()
-  @Get('houses')
-  getRecentYear() {
-    return this.houseService.getRecentYear()
+  @Get('houses/latest')
+  getLatest() {
+    return this.houseService.getLatest()
   }
 
-  @Get('houses/all')
+  @Public()
+  @Get('houses')
   getAll() {
     return this.houseService.getAll()
   }
