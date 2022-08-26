@@ -11,7 +11,7 @@ import { omitBy } from 'lodash/fp'
 import { setTimeout } from 'timers/promises'
 import { fetch } from 'undici'
 import { PrismaService } from '../prisma/prisma.service'
-import { buildURL } from '../util'
+import { buildURL } from '../utils'
 
 @Injectable()
 export class RequestService {

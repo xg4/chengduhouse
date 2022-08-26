@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
 import { User } from '@prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import { comparePassword, hashPassword } from '../util'
+import { comparePassword, hashPassword } from '../utils'
 import { AuthDto } from './dto/auth.dto'
 
 @Injectable()

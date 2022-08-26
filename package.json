@@ -15,7 +15,7 @@
   "license": "MIT",
   "author": "xg4 <xingor4@gmail.com>",
   "scripts": {
-    "prebuild": "rimraf dist && npm run db:migrate && npm run db:gen",
+    "prebuild": "rimraf dist && npm run db:gen",
     "build": "nest build",
     "db:migrate": "prisma migrate deploy",
     "db:gen": "prisma generate",
